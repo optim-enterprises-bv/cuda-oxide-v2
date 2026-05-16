@@ -293,8 +293,12 @@ pub fn convert_shared_alloc_dc(
         (alloc_key, mir_elem_type, size, alignment)
     };
 
-    let global_name = if alloc_key.is_some()
-        && let Some(existing_name) = shared_globals.get(alloc_key.as_deref().unwrap())
+    // Cache hit only when the op carries a key AND that key is already in
+    // `shared_globals`. `as_ref()` borrows for the if-let scope so the else
+    // branch can still move `alloc_key` into `create_shared_global` (which
+    // takes ownership and inserts it into the cache).
+    let global_name = if let Some(key) = alloc_key.as_ref()
+        && let Some(existing_name) = shared_globals.get(key)
     {
         existing_name.clone()
     } else {
@@ -324,8 +328,10 @@ pub fn convert_shared_alloc_dc(
 /// - Optional alignment
 /// - Unique generated name (`__shared_mem_N`)
 ///
-/// The global is inserted at the front of the module block.
-/// If `alloc_key` is provided, the name is cached for deduplication.
+/// The global is inserted at the front of the module block. When
+/// `alloc_key` is `Some`, the key is moved into `shared_globals` so that
+/// later allocations with the same key reuse this global (caller is
+/// expected to have already checked the cache for a hit).
 fn create_shared_global(
     ctx: &mut Context,
     op: Ptr<Operation>,
