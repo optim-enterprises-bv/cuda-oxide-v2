@@ -6,14 +6,15 @@
 #![no_std]
 
 pub use cuda_macros::{
-    cluster_launch, convergent, cuda_module, device, gpu_printf, kernel, launch_bounds, pure,
-    readonly,
+    cluster_launch, constant, convergent, cuda_module, device, gpu_printf, kernel, launch_bounds,
+    pure, readonly,
 };
 
 // Re-export for convenience
 pub mod atomic;
 pub mod barrier;
 pub mod clc;
+pub mod constant;
 pub mod cluster;
 pub mod cooperative_groups;
 pub mod cusimd;
@@ -51,6 +52,7 @@ pub use barrier::{
 pub use cusimd::{CuSimd, Float2, Float4, TmemRegs4, TmemRegs32};
 pub use disjoint::DisjointSlice;
 pub use fence::*;
+pub use constant::Constant;
 pub use shared::{DynamicSharedArray, SharedArray};
 pub use tcgen05::{
     TensorMemoryHandle, TmemAddress, TmemDeallocated, TmemF32x4, TmemF32x32, TmemGuard, TmemReady,
