@@ -37,9 +37,26 @@ use super::{
 /// Each variant wraps a reference to the typed op so that handler methods can
 /// call op-specific accessors (predicates, ordering, asm template, etc.)
 /// without repeating the downcast inside every arm.
+///
+/// # Maintenance contract
+///
+/// Adding a new dialect-llvm op to textual export touches four places in
+/// this file:
+///
+/// 1. Add a variant to `LlvmOp` below.
+/// 2. Add a matching entry in the [`classify_op!`] invocation.
+/// 3. Add an `emit_*` helper method on [`ModuleExportState`].
+/// 4. Add a `Some(LlvmOp::X(op)) => self.emit_x(...)` arm in `export_op`.
+///
+/// Selective dispatch sites elsewhere in the export pipeline (e.g. the
+/// value-name pre-pass in `function.rs`) inspect specific op types via
+/// `downcast_ref` directly and do not need to be updated.
 enum LlvmOp<'op> {
     // Terminators
     Return(&'op ops::ReturnOp),
+    /// `UnreachableOp` carries no operands or attributes, so the typed reference
+    /// is intentionally unread. The variant is kept tuple-shaped for uniformity
+    /// with the other terminator variants.
     #[allow(dead_code)]
     Unreachable(&'op ops::UnreachableOp),
     Br(&'op ops::BrOp),

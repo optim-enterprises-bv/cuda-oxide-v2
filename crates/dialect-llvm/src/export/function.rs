@@ -325,10 +325,11 @@ impl<'a> ModuleExportState<'a> {
                 // Name operation results
                 for op in block_node.deref(self.ctx).iter(self.ctx) {
                     let op_ref = op.deref(self.ctx);
-                    let op_id = Operation::get_opid(op, self.ctx);
+                    let op_obj = Operation::get_op_dyn(op, self.ctx);
+                    let op_dyn = op_obj.as_ref();
 
                     // Skip ops that don't produce named results (UndefOp is handled specially)
-                    if op_id == ops::UndefOp::get_opid_static() {
+                    if op_dyn.downcast_ref::<ops::UndefOp>().is_some() {
                         // UndefOp result will be named "undef"
                         continue;
                     }
@@ -341,8 +342,7 @@ impl<'a> ModuleExportState<'a> {
                     // Example: bb6 has PHI receiving constant 0 from bb14, but bb6 is
                     // exported before bb14. Without pre-pass registration, the constant's
                     // Value is not in value_names when bb6's PHI is emitted.
-                    if op_id == ops::ConstantOp::get_opid_static() {
-                        let const_op = Operation::get_op::<ops::ConstantOp>(op, self.ctx).unwrap();
+                    if let Some(const_op) = op_dyn.downcast_ref::<ops::ConstantOp>() {
                         let val_attr = const_op.get_value(self.ctx);
 
                         let const_str = if let Some(int_attr) =
@@ -373,9 +373,7 @@ impl<'a> ModuleExportState<'a> {
                     // later-printed block defines the address used by an
                     // earlier-printed block. The op-emit arm in `export_op`
                     // for AddressOfOp asserts this invariant.
-                    if op_id == ops::AddressOfOp::get_opid_static() {
-                        let address_of =
-                            Operation::get_op::<ops::AddressOfOp>(op, self.ctx).unwrap();
+                    if let Some(address_of) = op_dyn.downcast_ref::<ops::AddressOfOp>() {
                         let global_name = address_of.get_global_name(self.ctx);
                         let res = op_ref.get_result(0);
                         value_names.insert(res, format!("@{global_name}"));
@@ -401,14 +399,15 @@ impl<'a> ModuleExportState<'a> {
             {
                 let block_ref = block.deref(self.ctx);
                 if let Some(term) = block_ref.iter(self.ctx).last() {
-                    let op_id = Operation::get_opid(term, self.ctx);
+                    let term_obj = Operation::get_op_dyn(term, self.ctx);
+                    let term_dyn = term_obj.as_ref();
 
-                    if op_id == ops::BrOp::get_opid_static() {
+                    if term_dyn.downcast_ref::<ops::BrOp>().is_some() {
                         // BrOp has 1 successor and all operands are passed to it
                         let dest = term.deref(self.ctx).successors().next().unwrap();
                         let args: Vec<_> = term.deref(self.ctx).operands().collect();
                         pred_map.entry(dest).or_default().push((block, args));
-                    } else if op_id == ops::CondBrOp::get_opid_static() {
+                    } else if term_dyn.downcast_ref::<ops::CondBrOp>().is_some() {
                         let succs: Vec<_> = term.deref(self.ctx).successors().collect();
                         let true_dest = succs[0];
                         let false_dest = succs[1];
