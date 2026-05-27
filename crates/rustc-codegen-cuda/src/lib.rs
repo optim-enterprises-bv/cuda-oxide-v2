@@ -527,14 +527,74 @@ impl CodegenBackend for CudaCodegenBackend {
                         dump_llvm_dialect: self.config.dump_llvm_dialect,
                     };
 
-                // Run the cuda-oxide pipeline!
-                match device_codegen::generate_device_code(
-                    tcx,
-                    device_functions,
-                    &collection_result.device_externs,
-                    &device_config,
-                ) {
-                    Ok(result) => {
+                // Run the cuda-oxide pipeline, catching backend panics and
+                // re-emitting them as a cuda-oxide diagnostic. A panic
+                // inside the pipeline (typically pliron's IR invariant
+                // checks) would otherwise escape to rustc's panic hook and
+                // get dressed up as "the compiler unexpectedly panicked,
+                // please file a rustc bug". The bug is in cuda-oxide, so
+                // we want users pointed at our tracker, not rustc's.
+                //
+                // We also briefly swap rustc's ICE hook for our own, because
+                // panic hooks fire *before* catch_unwind catches the unwind.
+                // Without the swap, the rustc-flavoured banner would still
+                // print to stderr ahead of our diagnostic. The replacement
+                // hook also captures a backtrace, since by the time we
+                // catch the unwind the stack we want is gone. Capture
+                // honours `RUST_BACKTRACE` so an unset env var still costs
+                // nothing. Hooks are global; rustc's codegen at this entry
+                // point is effectively single-threaded, so the brief
+                // window where the hook is swapped is safe.
+                let (panic_outcome, panic_backtrace) = {
+                    use std::backtrace::Backtrace;
+                    use std::panic::{AssertUnwindSafe, catch_unwind};
+                    use std::sync::{Arc, Mutex};
+                    let bt_slot: Arc<Mutex<Option<Backtrace>>> = Arc::new(Mutex::new(None));
+                    let bt_setter = Arc::clone(&bt_slot);
+                    let prev_hook = std::panic::take_hook();
+                    std::panic::set_hook(Box::new(move |_info| {
+                        if let Ok(mut g) = bt_setter.lock() {
+                            *g = Some(Backtrace::capture());
+                        }
+                    }));
+                    let r = catch_unwind(AssertUnwindSafe(|| {
+                        device_codegen::generate_device_code(
+                            tcx,
+                            device_functions,
+                            &collection_result.device_externs,
+                            &device_config,
+                        )
+                    }));
+                    std::panic::set_hook(prev_hook);
+                    (r, bt_slot)
+                };
+
+                match panic_outcome {
+                    Err(payload) => {
+                        let msg = payload
+                            .downcast_ref::<&str>()
+                            .map(|s| s.to_string())
+                            .or_else(|| payload.downcast_ref::<String>().cloned())
+                            .unwrap_or_else(|| "<opaque panic payload>".into());
+                        match panic_backtrace.lock().ok().and_then(|mut g| g.take()) {
+                            Some(bt)
+                                if bt.status() == std::backtrace::BacktraceStatus::Captured =>
+                            {
+                                eprintln!("[rustc_codegen_cuda] backtrace:\n{bt}");
+                            }
+                            _ => {
+                                eprintln!(
+                                    "[rustc_codegen_cuda] note: run with `RUST_BACKTRACE=1` to display a backtrace"
+                                );
+                            }
+                        }
+                        tcx.dcx().fatal(format!(
+                            "[rustc_codegen_cuda] Internal compiler error in \
+                             device codegen: {msg}. This is a bug in cuda-oxide. \
+                             Please file at https://github.com/NVlabs/cuda-oxide/issues"
+                        ));
+                    }
+                    Ok(Ok(result)) => {
                         if self.config.verbose
                             && let Some(artifact) = result.artifact.as_ref()
                         {
@@ -574,7 +634,7 @@ impl CodegenBackend for CudaCodegenBackend {
                         }
                         Some(result)
                     }
-                    Err(e) => {
+                    Ok(Err(e)) => {
                         // Hard-fail: a swallowed device codegen error produces
                         // a host binary with stale or missing PTX, which then
                         // silently mis-runs on the GPU. The wrapper script
