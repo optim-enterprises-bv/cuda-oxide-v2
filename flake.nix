@@ -124,15 +124,37 @@
           name = "cuda-oxide-new";
           runtimeInputs = [ cargo-oxide ];
           text = ''
+            # `cargo oxide new <name> [--async]` takes a single positional
+            # project name. Pick the first non-flag argument as the directory
+            # to drop the template flake into, so flag ordering (e.g. a leading
+            # `--async`) doesn't send the copy to the wrong path.
+            project=""
+            for arg in "$@"; do
+              case "$arg" in
+                -*) ;;
+                *)
+                  project="$arg"
+                  break
+                  ;;
+              esac
+            done
+
             output=$(cargo-oxide new "$@")
-            cp ${userFlake} "$1/flake.nix"
-            chmod +w "$1/flake.nix"
+
+            if [ -n "$project" ] && [ -d "$project" ]; then
+              cp ${userFlake} "$project/flake.nix"
+              chmod +w "$project/flake.nix"
+            fi
+
             echo "Note: run 'nix develop' inside the project directory before using cargo oxide."
             echo ""
             echo "$output"
           '';
         };
 
+        # Packages the `cargo-oxide` CLI. Known impurity: `cargo oxide run`
+        # still builds librustc_codegen_cuda.so on first use and caches it
+        # outside the Nix store, so this derivation is not fully pure yet.
         cargo-oxide = craneLib.buildPackage (
           craneLib.crateNameFromCargoToml { cargoToml = ./crates/cargo-oxide/Cargo.toml; }
           // cargoOxideCommonArgs
