@@ -108,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Values are f32-representable so the same arrays double as f64 inputs
     // after a widening cast.
     let ys_f32: Vec<f32> = vec![
-        0.0, 1.0, -1.0, 1.0, -1.0, 2.0, -2.0, 0.5, -0.5, 3.14, -3.14, 1e-3, -1e-3, 100.0, -100.0,
+        0.0, 1.0, -1.0, 1.0, -1.0, 2.0, -2.0, 0.5, -0.5, 3.25, -3.25, 1e-3, -1e-3, 100.0, -100.0,
         7.7,
     ];
     let xs_f32: Vec<f32> = vec![
