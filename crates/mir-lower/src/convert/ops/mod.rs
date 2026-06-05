@@ -38,3 +38,6 @@ pub mod cast;
 pub mod constants;
 pub mod control_flow;
 pub mod memory;
+
+#[cfg(test)]
+mod test_util;

@@ -687,5 +687,381 @@ fn get_or_create_extern_shared_global(
 
 #[cfg(test)]
 mod tests {
-    // TODO (npasham): Add unit tests for memory conversion
+    //! End-to-end lowering tests for `dialect-mir` memory ops.
+    //!
+    //! The `convert_*` functions in this file take a live
+    //! `DialectConversionRewriter`, which is owned by pliron's conversion
+    //! driver and not constructible standalone. So each test builds a small
+    //! MIR module, runs the full `lower_mir_to_llvm` pass on it, and asserts
+    //! the lowered module contains the expected `dialect-llvm` shape — same
+    //! pattern as `tests/lowering_test.rs`.
+
+    use super::*;
+    use crate::convert::ops::test_util::*;
+    use dialect_llvm::op_interfaces::PointerTypeResult;
+    use dialect_llvm::ops as llvm;
+    use dialect_llvm::types::{PointerType, address_space as llvm_addr};
+    use dialect_mir::ops as mir;
+    use dialect_mir::types::MirPtrType;
+    use pliron::basic_block::BasicBlock;
+    use pliron::builtin::attributes::{StringAttr, TypeAttr};
+    use pliron::builtin::op_interfaces::SymbolOpInterface;
+    use pliron::builtin::types::{IntegerType, Signedness};
+    use pliron::context::Context;
+    use pliron::linked_list::ContainsLinkedList;
+    use pliron::op::Op;
+    use pliron::operation::Operation;
+
+    fn ptr_addrspace(ctx: &Context, ty: Ptr<TypeObj>) -> u32 {
+        ty.deref(ctx)
+            .downcast_ref::<PointerType>()
+            .expect("expected llvm.PointerType")
+            .address_space
+    }
+
+    #[test]
+    fn convert_alloca_lowers_to_llvm_alloca() {
+        let mut ctx = make_ctx();
+        let i32_ty: Ptr<TypeObj> = IntegerType::get(&mut ctx, 32, Signedness::Signless).into();
+        let mir_ptr_ty = MirPtrType::get_generic(&mut ctx, i32_ty, true);
+
+        let (module_ptr, block) = build_kernel(&mut ctx, vec![], vec![]);
+
+        let alloca_op = Operation::new(
+            &mut ctx,
+            mir::MirAllocaOp::get_concrete_op_info(),
+            vec![mir_ptr_ty.into()],
+            vec![],
+            vec![],
+            0,
+        );
+        alloca_op.insert_at_back(block, &ctx);
+        append_mir_return(&mut ctx, block, vec![]);
+
+        crate::lower_mir_to_llvm(&mut ctx, module_ptr).expect("lowering failed");
+
+        let body = kernel_blocks(&ctx, module_ptr);
+        assert_eq!(
+            count_ops::<llvm::AllocaOp>(&ctx, &body),
+            1,
+            "expected exactly one llvm.alloca"
+        );
+        let alloca = find_first::<llvm::AllocaOp>(&ctx, &body).unwrap();
+        // Element type should round-trip through convert_type as i32.
+        let elem_ty = alloca.result_pointee_type(&ctx);
+        assert!(elem_ty.deref(&ctx).is::<IntegerType>());
+    }
+
+    #[test]
+    fn convert_store_lowers_to_llvm_store() {
+        let mut ctx = make_ctx();
+        let i32_ty: Ptr<TypeObj> = IntegerType::get(&mut ctx, 32, Signedness::Signless).into();
+        let mir_ptr_ty = MirPtrType::get_generic(&mut ctx, i32_ty, true);
+
+        // Kernel takes (ptr, val) so we can store one into the other.
+        let (module_ptr, block) = build_kernel(&mut ctx, vec![mir_ptr_ty.into(), i32_ty], vec![]);
+        let ptr_val = block.deref(&ctx).get_argument(0);
+        let val = block.deref(&ctx).get_argument(1);
+
+        let store_op = Operation::new(
+            &mut ctx,
+            mir::MirStoreOp::get_concrete_op_info(),
+            vec![],
+            vec![ptr_val, val],
+            vec![],
+            0,
+        );
+        store_op.insert_at_back(block, &ctx);
+        append_mir_return(&mut ctx, block, vec![]);
+
+        crate::lower_mir_to_llvm(&mut ctx, module_ptr).expect("lowering failed");
+
+        let body = kernel_blocks(&ctx, module_ptr);
+        assert_eq!(
+            count_ops::<llvm::StoreOp>(&ctx, &body),
+            1,
+            "expected one llvm.store"
+        );
+        // The original mir.store must be gone.
+        assert_eq!(count_ops::<mir::MirStoreOp>(&ctx, &body), 0);
+
+        // convert_store swaps operand order: mir.store is [ptr, value] but
+        // llvm.store takes (value, ptr). Verify that mapping survived.
+        let store = find_first::<llvm::StoreOp>(&ctx, &body).unwrap();
+        let addr_ty = store.address_opd(&ctx).get_type(&ctx);
+        assert!(addr_ty.deref(&ctx).is::<PointerType>(), "operand 1 is ptr");
+    }
+
+    #[test]
+    fn convert_load_lowers_to_llvm_load() {
+        let mut ctx = make_ctx();
+        let i32_ty: Ptr<TypeObj> = IntegerType::get(&mut ctx, 32, Signedness::Signless).into();
+        let mir_ptr_ty = MirPtrType::get_generic(&mut ctx, i32_ty, false);
+
+        let (module_ptr, block) = build_kernel(&mut ctx, vec![mir_ptr_ty.into()], vec![]);
+        let ptr_val = block.deref(&ctx).get_argument(0);
+
+        let load_op = Operation::new(
+            &mut ctx,
+            mir::MirLoadOp::get_concrete_op_info(),
+            vec![i32_ty],
+            vec![ptr_val],
+            vec![],
+            0,
+        );
+        load_op.insert_at_back(block, &ctx);
+        append_mir_return(&mut ctx, block, vec![]);
+
+        crate::lower_mir_to_llvm(&mut ctx, module_ptr).expect("lowering failed");
+
+        let body = kernel_blocks(&ctx, module_ptr);
+        assert_eq!(count_ops::<llvm::LoadOp>(&ctx, &body), 1);
+        assert_eq!(count_ops::<mir::MirLoadOp>(&ctx, &body), 0);
+    }
+
+    #[test]
+    fn convert_ref_lowers_to_alloca_then_store() {
+        let mut ctx = make_ctx();
+        let i32_ty: Ptr<TypeObj> = IntegerType::get(&mut ctx, 32, Signedness::Signless).into();
+        let mir_ptr_ty = MirPtrType::get_generic(&mut ctx, i32_ty, false);
+
+        // Take a u32 by value, build `&x`.
+        let (module_ptr, block) = build_kernel(&mut ctx, vec![i32_ty], vec![]);
+        let arg = block.deref(&ctx).get_argument(0);
+
+        let ref_op_ptr = Operation::new(
+            &mut ctx,
+            mir::MirRefOp::get_concrete_op_info(),
+            vec![mir_ptr_ty.into()],
+            vec![arg],
+            vec![],
+            0,
+        );
+        mir::MirRefOp::new(ref_op_ptr).set_mutable(&mut ctx, false);
+        ref_op_ptr.insert_at_back(block, &ctx);
+        append_mir_return(&mut ctx, block, vec![]);
+
+        crate::lower_mir_to_llvm(&mut ctx, module_ptr).expect("lowering failed");
+
+        let body = kernel_blocks(&ctx, module_ptr);
+        assert_eq!(
+            count_ops::<llvm::AllocaOp>(&ctx, &body),
+            1,
+            "ref must materialize via alloca"
+        );
+        assert_eq!(
+            count_ops::<llvm::StoreOp>(&ctx, &body),
+            1,
+            "ref must store the value into the alloca"
+        );
+        assert_eq!(count_ops::<mir::MirRefOp>(&ctx, &body), 0);
+    }
+
+    #[test]
+    fn convert_ptr_offset_lowers_to_gep_with_pointee_elem_type() {
+        let mut ctx = make_ctx();
+        let i32_ty: Ptr<TypeObj> = IntegerType::get(&mut ctx, 32, Signedness::Signless).into();
+        let i64_ty: Ptr<TypeObj> = IntegerType::get(&mut ctx, 64, Signedness::Signless).into();
+        let mir_ptr_ty = MirPtrType::get_generic(&mut ctx, i32_ty, true);
+
+        let (module_ptr, block) = build_kernel(&mut ctx, vec![mir_ptr_ty.into(), i64_ty], vec![]);
+        let ptr_val = block.deref(&ctx).get_argument(0);
+        let off_val = block.deref(&ctx).get_argument(1);
+
+        let off_op = Operation::new(
+            &mut ctx,
+            mir::MirPtrOffsetOp::get_concrete_op_info(),
+            vec![mir_ptr_ty.into()],
+            vec![ptr_val, off_val],
+            vec![],
+            0,
+        );
+        off_op.insert_at_back(block, &ctx);
+        append_mir_return(&mut ctx, block, vec![]);
+
+        crate::lower_mir_to_llvm(&mut ctx, module_ptr).expect("lowering failed");
+
+        let body = kernel_blocks(&ctx, module_ptr);
+        let gep = find_first::<llvm::GetElementPtrOp>(&ctx, &body).expect("expected one llvm.gep");
+        // Element type must come from the MirPtrType pointee (i32), not the
+        // i8 fallback used when no operand-type info is available.
+        let elem_ty = gep.src_elem_type(&ctx);
+        let elem_ty_ref = elem_ty.deref(&ctx);
+        let int_ty = elem_ty_ref
+            .downcast_ref::<IntegerType>()
+            .expect("gep src_elem_type should be IntegerType");
+        assert_eq!(int_ty.width(), 32, "gep elem type must be i32 (pointee)");
+    }
+
+    /// Build a `mir.shared_alloc` returning `MirPtrType<i32, addrspace=3>` of
+    /// length `size`, with the given alloc_key, and append it to `block`.
+    fn append_shared_alloc(ctx: &mut Context, block: Ptr<BasicBlock>, alloc_key: &str, size: u64) {
+        use pliron::builtin::attributes::IntegerAttr;
+        use pliron::utils::apint::APInt;
+
+        let i32_ty: Ptr<TypeObj> = IntegerType::get(ctx, 32, Signedness::Signless).into();
+        let result_ty = MirPtrType::get_shared(ctx, i32_ty, true);
+        let op = Operation::new(
+            ctx,
+            mir::MirSharedAllocOp::get_concrete_op_info(),
+            vec![result_ty.into()],
+            vec![],
+            vec![],
+            0,
+        );
+        let alloc = mir::MirSharedAllocOp::new(op);
+        alloc.set_attr_elem_type(ctx, TypeAttr::new(i32_ty));
+        let size_attr = IntegerAttr::new(
+            IntegerType::get(ctx, 64, Signedness::Signless),
+            APInt::from_u64(size, std::num::NonZeroUsize::new(64).unwrap()),
+        );
+        alloc.set_attr_size(ctx, size_attr);
+        alloc.set_attr_alloc_key(ctx, StringAttr::new(alloc_key.to_string()));
+        op.insert_at_back(block, ctx);
+    }
+
+    #[test]
+    fn convert_shared_alloc_creates_global_in_addrspace_3() {
+        let mut ctx = make_ctx();
+        let (module_ptr, block) = build_kernel(&mut ctx, vec![], vec![]);
+        append_shared_alloc(&mut ctx, block, "k1", 64);
+        append_mir_return(&mut ctx, block, vec![]);
+
+        crate::lower_mir_to_llvm(&mut ctx, module_ptr).expect("lowering failed");
+
+        // Global lives at module level; addressof lives in the function body.
+        let top = module_top_block(&ctx, module_ptr);
+        let global = top
+            .deref(&ctx)
+            .iter(&ctx)
+            .find_map(|op| Operation::get_op::<llvm::GlobalOp>(op, &ctx))
+            .expect("expected an llvm.global for the shared allocation");
+        assert_eq!(
+            global.get_address_space(&ctx),
+            llvm_addr::SHARED,
+            "shared_alloc global must live in addrspace 3"
+        );
+        assert!(
+            global
+                .get_symbol_name(&ctx)
+                .to_string()
+                .starts_with("__shared_mem_"),
+            "shared global should have __shared_mem_ prefix"
+        );
+
+        let body = kernel_blocks(&ctx, module_ptr);
+        let addrof =
+            find_first::<llvm::AddressOfOp>(&ctx, &body).expect("expected an llvm.addressof");
+        assert_eq!(
+            ptr_addrspace(
+                &ctx,
+                addrof
+                    .get_operation()
+                    .deref(&ctx)
+                    .get_result(0)
+                    .get_type(&ctx)
+            ),
+            llvm_addr::SHARED,
+        );
+    }
+
+    #[test]
+    fn convert_shared_alloc_deduplicates_by_alloc_key() {
+        let mut ctx = make_ctx();
+        let (module_ptr, block) = build_kernel(&mut ctx, vec![], vec![]);
+        // Two allocations sharing the same alloc_key — they must collapse to
+        // a single underlying global (this is what enables a single `static`
+        // referenced from multiple sites to land in one shared region).
+        append_shared_alloc(&mut ctx, block, "same-key", 64);
+        append_shared_alloc(&mut ctx, block, "same-key", 64);
+        // A third with a different key must NOT dedupe with them.
+        append_shared_alloc(&mut ctx, block, "other-key", 32);
+        append_mir_return(&mut ctx, block, vec![]);
+
+        crate::lower_mir_to_llvm(&mut ctx, module_ptr).expect("lowering failed");
+
+        let top = module_top_block(&ctx, module_ptr);
+        let shared_globals = top
+            .deref(&ctx)
+            .iter(&ctx)
+            .filter_map(|op| Operation::get_op::<llvm::GlobalOp>(op, &ctx))
+            .filter(|g| g.get_address_space(&ctx) == llvm_addr::SHARED)
+            .count();
+        assert_eq!(
+            shared_globals, 2,
+            "two distinct alloc_keys must produce two globals"
+        );
+
+        // Each of the three mir.shared_alloc ops becomes one addressof.
+        let body = kernel_blocks(&ctx, module_ptr);
+        assert_eq!(count_ops::<llvm::AddressOfOp>(&ctx, &body), 3);
+    }
+
+    fn append_global_alloc(
+        ctx: &mut Context,
+        block: Ptr<BasicBlock>,
+        global_key: &str,
+        constant: bool,
+    ) {
+        let i32_ty: Ptr<TypeObj> = IntegerType::get(ctx, 32, Signedness::Signless).into();
+        let result_ty = if constant {
+            MirPtrType::get_constant(ctx, i32_ty, false)
+        } else {
+            MirPtrType::get_global(ctx, i32_ty, true)
+        };
+        let op = Operation::new(
+            ctx,
+            mir::MirGlobalAllocOp::get_concrete_op_info(),
+            vec![result_ty.into()],
+            vec![],
+            vec![],
+            0,
+        );
+        let alloc = mir::MirGlobalAllocOp::new(op);
+        alloc.set_attr_global_type(ctx, TypeAttr::new(i32_ty));
+        alloc.set_attr_global_key(ctx, StringAttr::new(global_key.to_string()));
+        op.insert_at_back(block, ctx);
+    }
+
+    #[test]
+    fn convert_global_alloc_places_in_global_or_constant_addrspace() {
+        let mut ctx = make_ctx();
+        let (module_ptr, block) = build_kernel(&mut ctx, vec![], vec![]);
+        append_global_alloc(&mut ctx, block, "ordinary_static", false);
+        append_global_alloc(&mut ctx, block, "_ZN7my_mod3KEYE", true);
+        append_mir_return(&mut ctx, block, vec![]);
+
+        crate::lower_mir_to_llvm(&mut ctx, module_ptr).expect("lowering failed");
+
+        let top = module_top_block(&ctx, module_ptr);
+        let globals: Vec<_> = top
+            .deref(&ctx)
+            .iter(&ctx)
+            .filter_map(|op| Operation::get_op::<llvm::GlobalOp>(op, &ctx))
+            .collect();
+        let global_addr_global = globals
+            .iter()
+            .find(|g| g.get_address_space(&ctx) == llvm_addr::GLOBAL)
+            .expect("expected one global in addrspace(1)");
+        let global_addr_const = globals
+            .iter()
+            .find(|g| g.get_address_space(&ctx) == llvm_addr::CONSTANT)
+            .expect("expected one global in addrspace(4)");
+
+        // Constant-memory globals reuse the Rust mangled name so host code can
+        // resolve them by name via `cuModuleGetGlobal`; ordinary globals get
+        // a counter-suffixed `__device_global_N`.
+        assert_eq!(
+            global_addr_const.get_symbol_name(&ctx).to_string(),
+            "_ZN7my_mod3KEYE",
+            "constant globals must keep the mangled global_key as symbol name"
+        );
+        assert!(
+            global_addr_global
+                .get_symbol_name(&ctx)
+                .to_string()
+                .starts_with("__device_global_"),
+            "ordinary device globals get the __device_global_ prefix"
+        );
+    }
 }
