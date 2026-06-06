@@ -36,16 +36,17 @@ use dialect_mir::ops::{
 use dialect_nvvm::ops::{
     ActiveMaskOp, BarWarpSyncOp, Barrier0Op, BreakpointOp, ClcQueryGetFirstCtaidXOp,
     ClcQueryGetFirstCtaidYOp, ClcQueryGetFirstCtaidZOp, ClcQueryIsCanceledOp,
-    ClcTryCancelMulticastOp, ClcTryCancelOp, ClusterSyncOp, CpAsyncBulkCommitGroupOp,
-    CpAsyncBulkTensorG2sTile1dOp, CpAsyncBulkTensorG2sTile2dMulticastCg2Op,
-    CpAsyncBulkTensorG2sTile2dMulticastOp, CpAsyncBulkTensorG2sTile2dOp,
-    CpAsyncBulkTensorG2sTile3dOp, CpAsyncBulkTensorG2sTile4dOp, CpAsyncBulkTensorG2sTile5dOp,
-    CpAsyncBulkTensorS2gTile1dOp, CpAsyncBulkTensorS2gTile2dOp, CpAsyncBulkTensorS2gTile3dOp,
-    CpAsyncBulkTensorS2gTile4dOp, CpAsyncBulkTensorS2gTile5dOp, CpAsyncBulkWaitGroupOp,
-    CpAsyncBulkWaitGroupReadOp, CvtF32x2Bf16x2Op, DsmemReadU32Op, FenceProxyAsyncSharedCtaOp,
-    MapaSharedClusterOp, MatchAllSyncI32Op, MatchAllSyncI64Op, MatchAnySyncI32Op,
-    MatchAnySyncI64Op, MbarrierArriveClusterOp, MbarrierArriveExpectTxSharedOp,
-    MbarrierArriveSharedOp, MbarrierInitSharedOp, MbarrierInvalSharedOp, MbarrierTestWaitSharedOp,
+    ClcTryCancelMulticastOp, ClcTryCancelOp, ClusterSyncOp, CosApproxF32Op,
+    CpAsyncBulkCommitGroupOp, CpAsyncBulkTensorG2sTile1dOp,
+    CpAsyncBulkTensorG2sTile2dMulticastCg2Op, CpAsyncBulkTensorG2sTile2dMulticastOp,
+    CpAsyncBulkTensorG2sTile2dOp, CpAsyncBulkTensorG2sTile3dOp, CpAsyncBulkTensorG2sTile4dOp,
+    CpAsyncBulkTensorG2sTile5dOp, CpAsyncBulkTensorS2gTile1dOp, CpAsyncBulkTensorS2gTile2dOp,
+    CpAsyncBulkTensorS2gTile3dOp, CpAsyncBulkTensorS2gTile4dOp, CpAsyncBulkTensorS2gTile5dOp,
+    CpAsyncBulkWaitGroupOp, CpAsyncBulkWaitGroupReadOp, CvtF32x2Bf16x2Op, DsmemReadU32Op,
+    Ex2ApproxF32Op, FenceProxyAsyncSharedCtaOp, Lg2ApproxF32Op, MapaSharedClusterOp,
+    MatchAllSyncI32Op, MatchAllSyncI64Op, MatchAnySyncI32Op, MatchAnySyncI64Op,
+    MbarrierArriveClusterOp, MbarrierArriveExpectTxSharedOp, MbarrierArriveSharedOp,
+    MbarrierInitSharedOp, MbarrierInvalSharedOp, MbarrierTestWaitSharedOp,
     MbarrierTryWaitParitySharedOp, MbarrierTryWaitSharedOp, NanosleepOp, NvvmAtomicCmpxchgOp,
     NvvmAtomicLoadOp, NvvmAtomicRmwOp, NvvmAtomicStoreOp, PmEventOp, ReadPtxSregClock64Op,
     ReadPtxSregClockOp, ReadPtxSregClusterCtaidXOp, ReadPtxSregClusterCtaidYOp,
@@ -56,18 +57,19 @@ use dialect_nvvm::ops::{
     ReadPtxSregNctaidYOp, ReadPtxSregNctaidZOp, ReadPtxSregNtidXOp, ReadPtxSregNtidYOp,
     ReadPtxSregNtidZOp, ReadPtxSregTidXOp, ReadPtxSregTidYOp, ReadPtxSregTidZOp, ShflSyncBflyF32Op,
     ShflSyncBflyI32Op, ShflSyncDownF32Op, ShflSyncDownI32Op, ShflSyncIdxF32Op, ShflSyncIdxI32Op,
-    ShflSyncUpF32Op, ShflSyncUpI32Op, StmatrixM8n8X2Op, StmatrixM8n8X2TransOp, StmatrixM8n8X4Op,
-    StmatrixM8n8X4TransOp, Tcgen05AllocCg2Op, Tcgen05AllocOp, Tcgen05CommitCg2Op,
-    Tcgen05CommitMulticastCg2Op, Tcgen05CommitOp, Tcgen05CommitSharedClusterCg2Op,
-    Tcgen05CommitSharedClusterOp, Tcgen05CpSmemToTmemCg2Op, Tcgen05CpSmemToTmemOp,
-    Tcgen05DeallocCg2Op, Tcgen05DeallocOp, Tcgen05FenceAfterThreadSyncOp,
+    ShflSyncUpF32Op, ShflSyncUpI32Op, SinApproxF32Op, SqrtApproxF32Op, StmatrixM8n8X2Op,
+    StmatrixM8n8X2TransOp, StmatrixM8n8X4Op, StmatrixM8n8X4TransOp, Tcgen05AllocCg2Op,
+    Tcgen05AllocOp, Tcgen05CommitCg2Op, Tcgen05CommitMulticastCg2Op, Tcgen05CommitOp,
+    Tcgen05CommitSharedClusterCg2Op, Tcgen05CommitSharedClusterOp, Tcgen05CpSmemToTmemCg2Op,
+    Tcgen05CpSmemToTmemOp, Tcgen05DeallocCg2Op, Tcgen05DeallocOp, Tcgen05FenceAfterThreadSyncOp,
     Tcgen05FenceBeforeThreadSyncOp, Tcgen05Ld16x256bPureOp, Tcgen05Ld16x256bX8PureOp,
     Tcgen05LoadWaitOp, Tcgen05MmaF16Cg2Op, Tcgen05MmaF16Op, Tcgen05MmaWsBf16Op, Tcgen05MmaWsF16Op,
     Tcgen05MmaWsTf32Op, Tcgen05RelinquishAllocPermitCg2Op, Tcgen05RelinquishAllocPermitOp,
     Tcgen05StoreWaitOp, ThreadfenceBlockOp, ThreadfenceOp, ThreadfenceSystemOp, TrapOp,
     VoteSyncAllOp, VoteSyncAnyOp, VoteSyncBallotOp, VprintfOp, WgmmaCommitGroupSyncAlignedOp,
     WgmmaFenceSyncAlignedOp, WgmmaMakeSmemDescOp, WgmmaMmaM64N64K16F32Bf16Op,
-    WgmmaWaitGroupSyncAlignedOp, WmmaLoadAM16N16K16Bf16RowOp, WmmaLoadBM16N16K16Bf16ColOp, WmmaMmaM16N16K16Bf16Bf16F32Op, WmmaStoreDM16N16K16Bf16F32RowOp, SqrtApproxF32Op, CosApproxF32Op, SinApproxF32Op, Ex2ApproxF32Op, Lg2ApproxF32Op,
+    WgmmaWaitGroupSyncAlignedOp, WmmaLoadAM16N16K16Bf16RowOp, WmmaLoadBM16N16K16Bf16ColOp,
+    WmmaMmaM16N16K16Bf16Bf16F32Op, WmmaStoreDM16N16K16Bf16F32RowOp,
 };
 
 // ---- Arithmetic ops --------------------------------------------------------
@@ -2965,7 +2967,10 @@ impl MirToLlvmConversion for SqrtApproxF32Op {
         operands_info: &OperandsInfo,
     ) -> Result<()> {
         super::intrinsics::math::convert_unary_approx_f32(
-            ctx, rewriter, self.get_operation(), operands_info,
+            ctx,
+            rewriter,
+            self.get_operation(),
+            operands_info,
             "llvm_nvvm_sqrt_approx_f",
         )
     }
@@ -2980,7 +2985,10 @@ impl MirToLlvmConversion for CosApproxF32Op {
         operands_info: &OperandsInfo,
     ) -> Result<()> {
         super::intrinsics::math::convert_unary_approx_f32(
-            ctx, rewriter, self.get_operation(), operands_info,
+            ctx,
+            rewriter,
+            self.get_operation(),
+            operands_info,
             "llvm_nvvm_cos_approx_f",
         )
     }
@@ -2995,7 +3003,10 @@ impl MirToLlvmConversion for SinApproxF32Op {
         operands_info: &OperandsInfo,
     ) -> Result<()> {
         super::intrinsics::math::convert_unary_approx_f32(
-            ctx, rewriter, self.get_operation(), operands_info,
+            ctx,
+            rewriter,
+            self.get_operation(),
+            operands_info,
             "llvm_nvvm_sin_approx_f",
         )
     }
@@ -3010,7 +3021,10 @@ impl MirToLlvmConversion for Ex2ApproxF32Op {
         operands_info: &OperandsInfo,
     ) -> Result<()> {
         super::intrinsics::math::convert_unary_approx_f32(
-            ctx, rewriter, self.get_operation(), operands_info,
+            ctx,
+            rewriter,
+            self.get_operation(),
+            operands_info,
             "llvm_nvvm_ex2_approx_f",
         )
     }
@@ -3025,7 +3039,10 @@ impl MirToLlvmConversion for Lg2ApproxF32Op {
         operands_info: &OperandsInfo,
     ) -> Result<()> {
         super::intrinsics::math::convert_unary_approx_f32(
-            ctx, rewriter, self.get_operation(), operands_info,
+            ctx,
+            rewriter,
+            self.get_operation(),
+            operands_info,
             "llvm_nvvm_lg2_approx_f",
         )
     }
@@ -3041,7 +3058,10 @@ impl MirToLlvmConversion for WmmaLoadAM16N16K16Bf16RowOp {
         operands_info: &OperandsInfo,
     ) -> Result<()> {
         super::intrinsics::wmma::convert_load_a_m16n16k16_bf16_row(
-            ctx, rewriter, self.get_operation(), operands_info,
+            ctx,
+            rewriter,
+            self.get_operation(),
+            operands_info,
         )
     }
 }
@@ -3055,7 +3075,10 @@ impl MirToLlvmConversion for WmmaLoadBM16N16K16Bf16ColOp {
         operands_info: &OperandsInfo,
     ) -> Result<()> {
         super::intrinsics::wmma::convert_load_b_m16n16k16_bf16_col(
-            ctx, rewriter, self.get_operation(), operands_info,
+            ctx,
+            rewriter,
+            self.get_operation(),
+            operands_info,
         )
     }
 }
@@ -3069,7 +3092,10 @@ impl MirToLlvmConversion for WmmaMmaM16N16K16Bf16Bf16F32Op {
         operands_info: &OperandsInfo,
     ) -> Result<()> {
         super::intrinsics::wmma::convert_mma_m16n16k16_bf16_bf16_f32(
-            ctx, rewriter, self.get_operation(), operands_info,
+            ctx,
+            rewriter,
+            self.get_operation(),
+            operands_info,
         )
     }
 }
@@ -3083,8 +3109,10 @@ impl MirToLlvmConversion for WmmaStoreDM16N16K16Bf16F32RowOp {
         operands_info: &OperandsInfo,
     ) -> Result<()> {
         super::intrinsics::wmma::convert_store_d_m16n16k16_bf16_f32_row(
-            ctx, rewriter, self.get_operation(), operands_info,
+            ctx,
+            rewriter,
+            self.get_operation(),
+            operands_info,
         )
     }
 }
-

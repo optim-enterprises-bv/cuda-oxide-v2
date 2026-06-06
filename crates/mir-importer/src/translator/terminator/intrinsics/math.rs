@@ -20,7 +20,6 @@ use pliron::builtin::types::FP32Type;
 use pliron::context::{Context, Ptr};
 use pliron::input_err;
 use pliron::location::{Located, Location};
-use pliron::op::Op;
 use pliron::operation::Operation;
 use rustc_public::mir;
 
@@ -67,14 +66,7 @@ pub fn emit_unary_approx_f32(
         loc.clone(),
     )?;
 
-    let math_op = Operation::new(
-        ctx,
-        op_info,
-        vec![f32_type.into()],
-        vec![x_val],
-        vec![],
-        0,
-    );
+    let math_op = Operation::new(ctx, op_info, vec![f32_type.into()], vec![x_val], vec![], 0);
     math_op.deref_mut(ctx).set_loc(loc.clone());
 
     if let Some(prev) = last_op {

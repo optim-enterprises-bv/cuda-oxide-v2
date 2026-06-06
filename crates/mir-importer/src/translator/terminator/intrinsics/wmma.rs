@@ -11,8 +11,8 @@ use crate::translator::rvalue;
 use crate::translator::types;
 use crate::translator::values::ValueMap;
 use dialect_nvvm::ops::{
-    WmmaLoadAM16N16K16Bf16RowOp, WmmaLoadBM16N16K16Bf16ColOp,
-    WmmaMmaM16N16K16Bf16Bf16F32Op, WmmaStoreDM16N16K16Bf16F32RowOp,
+    WmmaLoadAM16N16K16Bf16RowOp, WmmaLoadBM16N16K16Bf16ColOp, WmmaMmaM16N16K16Bf16Bf16F32Op,
+    WmmaStoreDM16N16K16Bf16F32RowOp,
 };
 use pliron::basic_block::BasicBlock;
 use pliron::builtin::types::{FP32Type, IntegerType, Signedness};
@@ -56,10 +56,7 @@ fn destination_struct_type(
 fn emit_wmma_load_4(
     ctx: &mut Context,
     body: &mir::Body,
-    op_info: (
-        fn(Ptr<Operation>) -> pliron::op::OpObj,
-        std::any::TypeId,
-    ),
+    op_info: (fn(Ptr<Operation>) -> pliron::op::OpObj, std::any::TypeId),
     op_label: &'static str,
     elt_ty: Ptr<TypeObj>,
     args: &[mir::Operand],
@@ -156,11 +153,19 @@ pub fn emit_wmma_load_a_m16n16k16_bf16_row(
 ) -> TranslationResult<Ptr<Operation>> {
     let elt_ty = IntegerType::get(ctx, 32, Signedness::Unsigned).into();
     emit_wmma_load_4(
-        ctx, body,
+        ctx,
+        body,
         WmmaLoadAM16N16K16Bf16RowOp::get_concrete_op_info(),
         "wmma_load_a_m16n16k16_bf16_row",
         elt_ty,
-        args, destination, target, block_ptr, prev_op, value_map, block_map, loc,
+        args,
+        destination,
+        target,
+        block_ptr,
+        prev_op,
+        value_map,
+        block_map,
+        loc,
     )
 }
 
@@ -179,11 +184,19 @@ pub fn emit_wmma_load_b_m16n16k16_bf16_col(
 ) -> TranslationResult<Ptr<Operation>> {
     let elt_ty = IntegerType::get(ctx, 32, Signedness::Unsigned).into();
     emit_wmma_load_4(
-        ctx, body,
+        ctx,
+        body,
         WmmaLoadBM16N16K16Bf16ColOp::get_concrete_op_info(),
         "wmma_load_b_m16n16k16_bf16_col",
         elt_ty,
-        args, destination, target, block_ptr, prev_op, value_map, block_map, loc,
+        args,
+        destination,
+        target,
+        block_ptr,
+        prev_op,
+        value_map,
+        block_map,
+        loc,
     )
 }
 

@@ -82,11 +82,26 @@ pub unsafe fn wmma_load_b_m16n16k16_bf16_col(src: *const u8, stride: u32) -> Wmm
 #[allow(clippy::too_many_arguments)]
 #[inline(never)]
 pub unsafe fn wmma_mma_m16n16k16_bf16_bf16_f32_raw(
-    a0: u32, a1: u32, a2: u32, a3: u32,
-    b0: u32, b1: u32, b2: u32, b3: u32,
-    c0: f32, c1: f32, c2: f32, c3: f32, c4: f32, c5: f32, c6: f32, c7: f32,
+    a0: u32,
+    a1: u32,
+    a2: u32,
+    a3: u32,
+    b0: u32,
+    b1: u32,
+    b2: u32,
+    b3: u32,
+    c0: f32,
+    c1: f32,
+    c2: f32,
+    c3: f32,
+    c4: f32,
+    c5: f32,
+    c6: f32,
+    c7: f32,
 ) -> WmmaAccF32 {
-    let _ = (a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, c4, c5, c6, c7);
+    let _ = (
+        a0, a1, a2, a3, b0, b1, b2, b3, c0, c1, c2, c3, c4, c5, c6, c7,
+    );
     unreachable!("wmma_mma_m16n16k16_bf16_bf16_f32_raw called outside CUDA kernel context")
 }
 
@@ -103,9 +118,8 @@ pub unsafe fn wmma_mma_m16n16k16_bf16_bf16_f32(
 ) -> WmmaAccF32 {
     unsafe {
         wmma_mma_m16n16k16_bf16_bf16_f32_raw(
-            a[0], a[1], a[2], a[3],
-            b[0], b[1], b[2], b[3],
-            c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7],
+            a[0], a[1], a[2], a[3], b[0], b[1], b[2], b[3], c[0], c[1], c[2], c[3], c[4], c[5],
+            c[6], c[7],
         )
     }
 }
@@ -124,7 +138,14 @@ pub unsafe fn wmma_mma_m16n16k16_bf16_bf16_f32(
 pub unsafe fn wmma_store_d_m16n16k16_bf16_f32_row_raw(
     dst: *mut f32,
     stride: u32,
-    d0: f32, d1: f32, d2: f32, d3: f32, d4: f32, d5: f32, d6: f32, d7: f32,
+    d0: f32,
+    d1: f32,
+    d2: f32,
+    d3: f32,
+    d4: f32,
+    d5: f32,
+    d6: f32,
+    d7: f32,
 ) {
     let _ = (dst, stride, d0, d1, d2, d3, d4, d5, d6, d7);
     unreachable!("wmma_store_d_m16n16k16_bf16_f32_row_raw called outside CUDA kernel context")
@@ -138,16 +159,10 @@ pub unsafe fn wmma_store_d_m16n16k16_bf16_f32_row_raw(
 /// * `dst` must be 16-byte aligned.
 /// * `stride` is in number of elements (not bytes).
 #[inline(always)]
-pub unsafe fn wmma_store_d_m16n16k16_bf16_f32_row(
-    dst: *mut f32,
-    frag: WmmaAccF32,
-    stride: u32,
-) {
+pub unsafe fn wmma_store_d_m16n16k16_bf16_f32_row(dst: *mut f32, frag: WmmaAccF32, stride: u32) {
     unsafe {
         wmma_store_d_m16n16k16_bf16_f32_row_raw(
-            dst, stride,
-            frag[0], frag[1], frag[2], frag[3],
-            frag[4], frag[5], frag[6], frag[7],
+            dst, stride, frag[0], frag[1], frag[2], frag[3], frag[4], frag[5], frag[6], frag[7],
         )
     }
 }

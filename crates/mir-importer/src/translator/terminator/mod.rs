@@ -1923,7 +1923,6 @@ fn try_dispatch_intrinsic(
             )?))
         }
 
-
         // =================================================================
         // Math approximation intrinsics (from intrinsics::math)
         // =================================================================
@@ -2000,8 +1999,8 @@ fn try_dispatch_intrinsic(
         // =================================================================
         // WMMA (Ampere+ per-warp tensor cores) (from intrinsics::wmma)
         // =================================================================
-        "cuda_device::wmma::wmma_load_a_m16n16k16_bf16_row" => Ok(Some(
-            intrinsics::wmma::emit_wmma_load_a_m16n16k16_bf16_row(
+        "cuda_device::wmma::wmma_load_a_m16n16k16_bf16_row" => {
+            Ok(Some(intrinsics::wmma::emit_wmma_load_a_m16n16k16_bf16_row(
                 ctx,
                 body,
                 args,
@@ -2012,10 +2011,10 @@ fn try_dispatch_intrinsic(
                 value_map,
                 block_map,
                 loc.clone(),
-            )?,
-        )),
-        "cuda_device::wmma::wmma_load_b_m16n16k16_bf16_col" => Ok(Some(
-            intrinsics::wmma::emit_wmma_load_b_m16n16k16_bf16_col(
+            )?))
+        }
+        "cuda_device::wmma::wmma_load_b_m16n16k16_bf16_col" => {
+            Ok(Some(intrinsics::wmma::emit_wmma_load_b_m16n16k16_bf16_col(
                 ctx,
                 body,
                 args,
@@ -2026,8 +2025,8 @@ fn try_dispatch_intrinsic(
                 value_map,
                 block_map,
                 loc.clone(),
-            )?,
-        )),
+            )?))
+        }
         "cuda_device::wmma::wmma_mma_m16n16k16_bf16_bf16_f32_raw" => Ok(Some(
             intrinsics::wmma::emit_wmma_mma_m16n16k16_bf16_bf16_f32_raw(
                 ctx,
