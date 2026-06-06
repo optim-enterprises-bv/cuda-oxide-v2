@@ -67,7 +67,7 @@ use dialect_nvvm::ops::{
     Tcgen05StoreWaitOp, ThreadfenceBlockOp, ThreadfenceOp, ThreadfenceSystemOp, TrapOp,
     VoteSyncAllOp, VoteSyncAnyOp, VoteSyncBallotOp, VprintfOp, WgmmaCommitGroupSyncAlignedOp,
     WgmmaFenceSyncAlignedOp, WgmmaMakeSmemDescOp, WgmmaMmaM64N64K16F32Bf16Op,
-    WgmmaWaitGroupSyncAlignedOp, SqrtApproxF32Op, CosApproxF32Op, SinApproxF32Op, Ex2ApproxF32Op, Lg2ApproxF32Op,
+    WgmmaWaitGroupSyncAlignedOp, WmmaLoadAM16N16K16Bf16RowOp, WmmaLoadBM16N16K16Bf16ColOp, WmmaMmaM16N16K16Bf16Bf16F32Op, WmmaStoreDM16N16K16Bf16F32RowOp, SqrtApproxF32Op, CosApproxF32Op, SinApproxF32Op, Ex2ApproxF32Op, Lg2ApproxF32Op,
 };
 
 // ---- Arithmetic ops --------------------------------------------------------
@@ -3030,3 +3030,61 @@ impl MirToLlvmConversion for Lg2ApproxF32Op {
         )
     }
 }
+// ---- WMMA (Ampere+ per-warp tensor cores) ---------------------------------
+
+#[op_interface_impl]
+impl MirToLlvmConversion for WmmaLoadAM16N16K16Bf16RowOp {
+    fn convert(
+        &self,
+        ctx: &mut Context,
+        rewriter: &mut DialectConversionRewriter,
+        operands_info: &OperandsInfo,
+    ) -> Result<()> {
+        super::intrinsics::wmma::convert_load_a_m16n16k16_bf16_row(
+            ctx, rewriter, self.get_operation(), operands_info,
+        )
+    }
+}
+
+#[op_interface_impl]
+impl MirToLlvmConversion for WmmaLoadBM16N16K16Bf16ColOp {
+    fn convert(
+        &self,
+        ctx: &mut Context,
+        rewriter: &mut DialectConversionRewriter,
+        operands_info: &OperandsInfo,
+    ) -> Result<()> {
+        super::intrinsics::wmma::convert_load_b_m16n16k16_bf16_col(
+            ctx, rewriter, self.get_operation(), operands_info,
+        )
+    }
+}
+
+#[op_interface_impl]
+impl MirToLlvmConversion for WmmaMmaM16N16K16Bf16Bf16F32Op {
+    fn convert(
+        &self,
+        ctx: &mut Context,
+        rewriter: &mut DialectConversionRewriter,
+        operands_info: &OperandsInfo,
+    ) -> Result<()> {
+        super::intrinsics::wmma::convert_mma_m16n16k16_bf16_bf16_f32(
+            ctx, rewriter, self.get_operation(), operands_info,
+        )
+    }
+}
+
+#[op_interface_impl]
+impl MirToLlvmConversion for WmmaStoreDM16N16K16Bf16F32RowOp {
+    fn convert(
+        &self,
+        ctx: &mut Context,
+        rewriter: &mut DialectConversionRewriter,
+        operands_info: &OperandsInfo,
+    ) -> Result<()> {
+        super::intrinsics::wmma::convert_store_d_m16n16k16_bf16_f32_row(
+            ctx, rewriter, self.get_operation(), operands_info,
+        )
+    }
+}
+

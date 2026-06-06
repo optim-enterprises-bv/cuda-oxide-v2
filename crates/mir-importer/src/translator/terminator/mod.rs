@@ -1998,6 +1998,64 @@ fn try_dispatch_intrinsic(
             loc.clone(),
         )?)),
         // =================================================================
+        // WMMA (Ampere+ per-warp tensor cores) (from intrinsics::wmma)
+        // =================================================================
+        "cuda_device::wmma::wmma_load_a_m16n16k16_bf16_row" => Ok(Some(
+            intrinsics::wmma::emit_wmma_load_a_m16n16k16_bf16_row(
+                ctx,
+                body,
+                args,
+                destination,
+                target,
+                block_ptr,
+                prev_op,
+                value_map,
+                block_map,
+                loc.clone(),
+            )?,
+        )),
+        "cuda_device::wmma::wmma_load_b_m16n16k16_bf16_col" => Ok(Some(
+            intrinsics::wmma::emit_wmma_load_b_m16n16k16_bf16_col(
+                ctx,
+                body,
+                args,
+                destination,
+                target,
+                block_ptr,
+                prev_op,
+                value_map,
+                block_map,
+                loc.clone(),
+            )?,
+        )),
+        "cuda_device::wmma::wmma_mma_m16n16k16_bf16_bf16_f32_raw" => Ok(Some(
+            intrinsics::wmma::emit_wmma_mma_m16n16k16_bf16_bf16_f32_raw(
+                ctx,
+                body,
+                args,
+                destination,
+                target,
+                block_ptr,
+                prev_op,
+                value_map,
+                block_map,
+                loc.clone(),
+            )?,
+        )),
+        "cuda_device::wmma::wmma_store_d_m16n16k16_bf16_f32_row_raw" => Ok(Some(
+            intrinsics::wmma::emit_wmma_store_d_m16n16k16_bf16_f32_row_raw(
+                ctx,
+                body,
+                args,
+                target,
+                block_ptr,
+                prev_op,
+                value_map,
+                block_map,
+                loc.clone(),
+            )?,
+        )),
+        // =================================================================
         // Debug & Profiling (from intrinsics::debug)
         // =================================================================
         "cuda_device::debug::clock" => Ok(Some(intrinsics::debug::emit_clock(
