@@ -99,6 +99,7 @@ pub mod atomic;
 mod clc;
 mod cluster;
 mod debug;
+mod math;
 mod grid;
 mod mbarrier;
 mod stmatrix;
@@ -115,6 +116,7 @@ pub use atomic::*;
 pub use clc::*;
 pub use cluster::*;
 pub use debug::*;
+pub use math::*;
 pub use grid::*;
 pub use mbarrier::*;
 pub use stmatrix::*;
@@ -141,4 +143,5 @@ pub fn register(ctx: &mut Context) {
     tcgen05::register(ctx);
     stmatrix::register(ctx);
     debug::register(ctx);
+    math::register(ctx);
 }

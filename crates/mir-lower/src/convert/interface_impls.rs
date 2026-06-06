@@ -67,7 +67,7 @@ use dialect_nvvm::ops::{
     Tcgen05StoreWaitOp, ThreadfenceBlockOp, ThreadfenceOp, ThreadfenceSystemOp, TrapOp,
     VoteSyncAllOp, VoteSyncAnyOp, VoteSyncBallotOp, VprintfOp, WgmmaCommitGroupSyncAlignedOp,
     WgmmaFenceSyncAlignedOp, WgmmaMakeSmemDescOp, WgmmaMmaM64N64K16F32Bf16Op,
-    WgmmaWaitGroupSyncAlignedOp,
+    WgmmaWaitGroupSyncAlignedOp, SqrtApproxF32Op, CosApproxF32Op, SinApproxF32Op, Ex2ApproxF32Op, Lg2ApproxF32Op,
 };
 
 // ---- Arithmetic ops --------------------------------------------------------
@@ -2950,6 +2950,83 @@ impl MirToLlvmConversion for ClcQueryGetFirstCtaidZOp {
             self.get_operation(),
             operands_info,
             "z",
+        )
+    }
+}
+
+// ---- Math approximation intrinsics ----------------------------------------
+
+#[op_interface_impl]
+impl MirToLlvmConversion for SqrtApproxF32Op {
+    fn convert(
+        &self,
+        ctx: &mut Context,
+        rewriter: &mut DialectConversionRewriter,
+        operands_info: &OperandsInfo,
+    ) -> Result<()> {
+        super::intrinsics::math::convert_unary_approx_f32(
+            ctx, rewriter, self.get_operation(), operands_info,
+            "llvm_nvvm_sqrt_approx_f",
+        )
+    }
+}
+
+#[op_interface_impl]
+impl MirToLlvmConversion for CosApproxF32Op {
+    fn convert(
+        &self,
+        ctx: &mut Context,
+        rewriter: &mut DialectConversionRewriter,
+        operands_info: &OperandsInfo,
+    ) -> Result<()> {
+        super::intrinsics::math::convert_unary_approx_f32(
+            ctx, rewriter, self.get_operation(), operands_info,
+            "llvm_nvvm_cos_approx_f",
+        )
+    }
+}
+
+#[op_interface_impl]
+impl MirToLlvmConversion for SinApproxF32Op {
+    fn convert(
+        &self,
+        ctx: &mut Context,
+        rewriter: &mut DialectConversionRewriter,
+        operands_info: &OperandsInfo,
+    ) -> Result<()> {
+        super::intrinsics::math::convert_unary_approx_f32(
+            ctx, rewriter, self.get_operation(), operands_info,
+            "llvm_nvvm_sin_approx_f",
+        )
+    }
+}
+
+#[op_interface_impl]
+impl MirToLlvmConversion for Ex2ApproxF32Op {
+    fn convert(
+        &self,
+        ctx: &mut Context,
+        rewriter: &mut DialectConversionRewriter,
+        operands_info: &OperandsInfo,
+    ) -> Result<()> {
+        super::intrinsics::math::convert_unary_approx_f32(
+            ctx, rewriter, self.get_operation(), operands_info,
+            "llvm_nvvm_ex2_approx_f",
+        )
+    }
+}
+
+#[op_interface_impl]
+impl MirToLlvmConversion for Lg2ApproxF32Op {
+    fn convert(
+        &self,
+        ctx: &mut Context,
+        rewriter: &mut DialectConversionRewriter,
+        operands_info: &OperandsInfo,
+    ) -> Result<()> {
+        super::intrinsics::math::convert_unary_approx_f32(
+            ctx, rewriter, self.get_operation(), operands_info,
+            "llvm_nvvm_lg2_approx_f",
         )
     }
 }

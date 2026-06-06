@@ -1923,6 +1923,80 @@ fn try_dispatch_intrinsic(
             )?))
         }
 
+
+        // =================================================================
+        // Math approximation intrinsics (from intrinsics::math)
+        // =================================================================
+        "cuda_device::math::sqrt_approx_f32" => Ok(Some(intrinsics::math::emit_unary_approx_f32(
+            ctx,
+            body,
+            dialect_nvvm::ops::SqrtApproxF32Op::get_concrete_op_info(),
+            "sqrt_approx_f32",
+            args,
+            destination,
+            target,
+            block_ptr,
+            prev_op,
+            value_map,
+            block_map,
+            loc.clone(),
+        )?)),
+        "cuda_device::math::cos_approx_f32" => Ok(Some(intrinsics::math::emit_unary_approx_f32(
+            ctx,
+            body,
+            dialect_nvvm::ops::CosApproxF32Op::get_concrete_op_info(),
+            "cos_approx_f32",
+            args,
+            destination,
+            target,
+            block_ptr,
+            prev_op,
+            value_map,
+            block_map,
+            loc.clone(),
+        )?)),
+        "cuda_device::math::sin_approx_f32" => Ok(Some(intrinsics::math::emit_unary_approx_f32(
+            ctx,
+            body,
+            dialect_nvvm::ops::SinApproxF32Op::get_concrete_op_info(),
+            "sin_approx_f32",
+            args,
+            destination,
+            target,
+            block_ptr,
+            prev_op,
+            value_map,
+            block_map,
+            loc.clone(),
+        )?)),
+        "cuda_device::math::ex2_approx_f32" => Ok(Some(intrinsics::math::emit_unary_approx_f32(
+            ctx,
+            body,
+            dialect_nvvm::ops::Ex2ApproxF32Op::get_concrete_op_info(),
+            "ex2_approx_f32",
+            args,
+            destination,
+            target,
+            block_ptr,
+            prev_op,
+            value_map,
+            block_map,
+            loc.clone(),
+        )?)),
+        "cuda_device::math::lg2_approx_f32" => Ok(Some(intrinsics::math::emit_unary_approx_f32(
+            ctx,
+            body,
+            dialect_nvvm::ops::Lg2ApproxF32Op::get_concrete_op_info(),
+            "lg2_approx_f32",
+            args,
+            destination,
+            target,
+            block_ptr,
+            prev_op,
+            value_map,
+            block_map,
+            loc.clone(),
+        )?)),
         // =================================================================
         // Debug & Profiling (from intrinsics::debug)
         // =================================================================

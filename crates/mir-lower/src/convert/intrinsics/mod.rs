@@ -76,6 +76,7 @@ pub mod clc;
 pub mod cluster;
 pub mod common;
 pub mod debug;
+pub mod math;
 pub mod mbarrier;
 pub mod stmatrix;
 pub mod tcgen05;
