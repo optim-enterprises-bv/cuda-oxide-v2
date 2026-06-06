@@ -1442,7 +1442,7 @@ fn show_generated_artifacts(example_dir: &Path, example: &str) {
 // cargo oxide new -- standalone project scaffolding
 // =========================================================================
 
-const GIT_REPO: &str = "https://github.com/NVlabs/cuda-oxide.git";
+const GIT_REPO: &str = "https://github.com/optim-enterprises-bv/cuda-oxide-v2.git";
 
 const RUST_TOOLCHAIN_TOML: &str = r#"[toolchain]
 channel = "nightly-2026-04-03"

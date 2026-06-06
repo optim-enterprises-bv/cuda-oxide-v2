@@ -195,7 +195,7 @@ fn auto_fetch_and_build() -> PathBuf {
                 "clone",
                 "--depth",
                 "1",
-                "https://github.com/NVlabs/cuda-oxide.git",
+                "https://github.com/optim-enterprises-bv/cuda-oxide-v2.git",
                 src_dir.to_str().unwrap(),
             ])
             .status()
